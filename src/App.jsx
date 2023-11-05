@@ -28,7 +28,7 @@ export const App = () => {
   const [q, setQ] = useState('');
   const [total, setTotal] = useState(null);
   const [first_load, setFirstLoad] = useState(false);
-  const [per_page, setPerPage] = useState(12);
+  const [per_page] = useState(12);
   const [modal, setModal] = useState({
     contentModal: null,
     isOpen: false,
