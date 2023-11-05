@@ -1,41 +1,38 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Button, Wrapper, WrapperModal } from './Modal.styled';
 
-export class Modal extends React.Component {
-  componentDidMount() {
-    document.addEventListener('keydown', this.handleKeyDown);
+export const Modal = ({ close, children }) => {
+  useEffect(() => {
+    const handleKeyDown = e => {
+      if (e.key === 'Escape') {
+        close();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
-  }
 
-  componentWillUnmount() {
-    document.body.style.overflow = 'visible';
-    document.removeEventListener('keydown', this.handleKeyDown);
-  }
+    return () => {
+      document.body.style.overflow = 'visible';
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [close]);
 
-  handleClickOut = ({ target, currentTarget }) => {
+  const handleClickClose = ({ target, currentTarget }) => {
     if (target === currentTarget) {
-      this.props.close();
+      close();
     }
   };
 
-  handleKeyDown = e => {
-    if (e.key === 'Escape') {
-      this.props.close();
-    }
-  };
-
-  render() {
-    return (
-      <Wrapper>
-        <WrapperModal>
-          <Button onClick={this.props.close}>✖️</Button>
-          {this.props.children}
-        </WrapperModal>
-      </Wrapper>
-    );
-  }
-}
+  return (
+    <Wrapper onClick={handleClickClose}>
+      <WrapperModal>
+        <Button onClick={close}>✖️</Button>
+        {children}
+      </WrapperModal>
+    </Wrapper>
+  );
+};
 
 Modal.propTypes = {
   close: PropTypes.func.isRequired,

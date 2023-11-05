@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ImageGallery } from 'components/ImageGallery/ImageGallery';
 import { SearchBar } from 'components/Searchbar/Searchbar';
 import { fetchGallery } from 'services/api.js';
@@ -8,103 +8,110 @@ import { Modal } from 'components/Modal/Modal';
 import { ImageModal, Wrapper } from 'App.styled';
 import { Circles } from 'react-loader-spinner';
 
-export class App extends React.Component {
-  state = {
-    loading: false,
-    first_load: false,
-    error: null,
-    images: [],
-    page: 1,
-    per_page: 12,
-    q: '',
-    total: null,
-    isOpen: false,
+export const App = () => {
+  // state = {
+  //   loading: false,
+  //   first_load: false,
+  //   error: null,
+  //   images: [],
+  //   page: 1,
+  //   per_page: 12,
+  //   q: '',
+  //   total: null,
+  //   isOpen: false,
+  //   contentModal: null,
+  // };
+
+  const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [q, setQ] = useState('');
+  const [total, setTotal] = useState(null);
+  const [first_load, setFirstLoad] = useState(false);
+  const [per_page, setPerPage] = useState(12);
+  const [modal, setModal] = useState({
     contentModal: null,
-  };
+    isOpen: false,
+  });
 
-  async componentDidMount() {
-    this.state.first_load = true;
-    const { per_page, page } = this.state;
-    this.getPhotos({ per_page, page });
-  }
+  useEffect(() => {
+    const getPhotos = async params => {
+      try {
+        setLoading(true);
+        const { hits, totalHits } = await fetchGallery(params);
+        setImages(prev => [...prev, ...hits]);
+        setTotal(totalHits);
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { per_page, page, q } = this.state;
-    if (q !== prevState.q || page !== prevState.page) {
-      this.getPhotos({ per_page, page, q });
-    }
-  }
-
-  getPhotos = async params => {
-    const { first_load, q, page } = this.state;
-    this.setState({ loading: true });
-    try {
-      const { hits, totalHits } = await fetchGallery(params);
-      this.setState(prevState => ({
-        images: [...prevState.images, ...hits],
-        total: totalHits,
-      }));
-      if (first_load || (q && page === 1)) {
-        toast.success(`We found ${totalHits} results!`);
+        if (hits.length === 0 && page === 1) {
+          toast.warning('There are no images by this search point word');
+        } else if (page === 1) {
+          toast.success(`We found ${totalHits} images`);
+        }
+      } catch (error) {
+        toast.error('Sorry, but something went wrong :(');
+      } finally {
+        setLoading(false);
+        setFirstLoad(false);
       }
-      this.state.first_load = false;
-    } catch (error) {
-      toast.error('Sorry, but something went wrong :(');
+    };
+
+    if (q) {
+      getPhotos({ per_page: per_page, page, q: q });
+    } else {
+      getPhotos({ per_page: per_page, page });
+    }
+  }, [per_page, page, q, first_load]);
+
+  const handleLoadMore = () => {
+    setLoading({ loading: true });
+    setPage(prev => prev + 1);
+  };
+
+  const handleSetSearch = query => {
+    if (q !== query) {
+      setPage(1);
+      setImages([]);
+      setQ(query);
     }
   };
 
-  handleLoadMore = () => {
-    this.setState({ loading: true });
-    this.setState(prev => ({ page: prev.page + 1 }));
-  };
-
-  handleSetSearch = q => {
-    this.setState({ q, images: [], page: 1 });
-  };
-
-  toggleModal = largeImageURL => {
-    this.setState(prev => ({
+  const { isOpen, contentModal } = modal;
+  const toggleModal = largeImageURL => {
+    setModal(prev => ({
       isOpen: !prev.isOpen,
       contentModal: largeImageURL,
     }));
   };
 
-  render() {
-    const { images, loading, q, isOpen, contentModal, total } = this.state;
-    return (
-      <Wrapper>
-        <SearchBar
-          setSearch={this.handleSetSearch}
-          loading={loading}
-          query={q}
+  return (
+    <Wrapper>
+      <SearchBar setSearch={handleSetSearch} loading={loading} query={q} />
+      <ImageGallery toggleModal={toggleModal} images={images} />
+
+      {total > images.length ? (
+        <Button onClick={handleLoadMore}>
+          {loading ? 'Loading...' : 'Load more'}
+        </Button>
+      ) : null}
+
+      {loading && (
+        <Circles
+          height="80"
+          width="80"
+          color="rgba(65, 47, 23, 0.673)"
+          ariaLabel="circles-loading"
+          wrapperStyle={{
+            marginLeft: '50%',
+          }}
+          visible={true}
         />
-        <ImageGallery toggleModal={this.toggleModal} images={images} />
+      )}
 
-        {total > images.length ? (
-          <Button onClick={this.handleLoadMore}>
-            {loading ? 'Loading...' : 'Load more'}
-          </Button>
-        ) : null}
-
-        {loading && (
-          <Circles
-            height="80"
-            width="80"
-            color="rgba(65, 47, 23, 0.673)"
-            ariaLabel="circles-loading"
-            wrapperStyle={{
-              marginLeft: '50%',
-            }}
-            visible={true}
-          />
-        )}
-
-        {isOpen && contentModal ? (
-          <Modal close={this.toggleModal}>
-            <ImageModal src={contentModal} alt="large pic" />
-          </Modal>
-        ) : null}
-      </Wrapper>
-    );
-  }
-}
+      {isOpen && contentModal ? (
+        <Modal close={toggleModal}>
+          <ImageModal src={modal.contentModal} alt="large pic" />
+        </Modal>
+      ) : null}
+    </Wrapper>
+  );
+};
